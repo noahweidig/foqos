@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct HomeProfilesListView: View {
+  @Environment(\.modelContext) private var context
+
   let profiles: [BlockedProfiles]
   let isBlocking: Bool
   let activeSessionProfileId: UUID?
@@ -51,6 +53,10 @@ struct HomeProfilesListView: View {
               onStatsTapped(profile)
             }
           )
+          .draggable(profile.id.uuidString)
+          .dropDestination(for: String.self) { items, _ in
+            moveProfile(idString: items.first, to: index)
+          }
 
           if index < profiles.count - 1 {
             Divider()
@@ -67,6 +73,22 @@ struct HomeProfilesListView: View {
           .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
       )
     }
+  }
+
+  private func moveProfile(idString: String?, to destination: Int) -> Bool {
+    guard let idString, let from = profiles.firstIndex(where: { $0.id.uuidString == idString }),
+      from != destination
+    else { return false }
+
+    var reordered = profiles
+    reordered.insert(reordered.remove(at: from), at: destination)
+    do {
+      try BlockedProfiles.reorderProfiles(reordered, in: context)
+    } catch {
+      print("Failed to reorder profiles: \(error)")
+      return false
+    }
+    return true
   }
 }
 
